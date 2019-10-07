@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+require "apipie-bindings"
+require "open3"
+
+name = "client.nat.lan"
+output = "/tmp/recipe-#{name}.img"
+uri = 'http://localhost:3000/'
+username = 'admin'
+password = 'changeme'
+verbose = true
+
+def make_redhat(template, output)
+  Dir.mktmpdir do |tmpdir|
+    File.write("#{tmpdir}/ks.cfg", template)
+    `virt-make-fs --partition --label=OEMDRV -- #{tmpdir} #{output}`
+    #`virt-make-fs --partition --size=+300M --format=qcow2 --label=OEMDRV -- #{tmpdir} #{output}`
+  end
+  return true
+  `mkfs.msdos -C "#{output}" 1440`
+  `echo OEMDRV | mlabel -i "#{output}"`
+  Open3.popen3("mcopy -i \"#{output}\" - ::ks.cfg") do |stdin, stdout, stderr|
+    stdin.puts template
+  end
+  `fsck.vfat -a "#{output}"`
+end
+
+def make_debian(template, output)
+  puts "Not supported for Debian OS family,\nuse https://wiki.debian.org/DebianInstaller/Preseed/EditIso"
+end
+
+def verbose_print(string)
+  puts string
+end
+
+def download_template(uri, username, password, name)
+  api = ApipieBindings::API.new({
+    uri: uri,
+    username: username,
+    password: password,
+    api_version: 2
+  })
+  host_list = api.resource(:hosts).action(:index).call(search: "name = #{name}")
+  raise("Host #{name} not found") if host_list["subtotal"] != 1
+  host_id = host_list["results"][0]["id"]
+  os_id = host_list["results"][0]["operatingsystem_id"]
+  family = api.resource(:operatingsystems).action(:show).call(id: os_id)["family"].downcase
+  template = api.resource(:hosts).action(:template).call(id: host_id, kind: "provision")["template"]
+  [family, template]
+rescue Exception => e
+  verbose_print(e.backtrace.join("\n"))
+  raise("Unable to download host, OS family or provision template, check Foreman logs: #{e}")
+end
+
+def make(family, template, output)
+  send(:"make_#{family}", template, output)
+rescue NoMethodError
+  puts "Not supported for #{family} OS family"
+end
+
+raise("File #{output} already exists, cannot continue!") if File.exist?(output)
+family, template = download_template(uri, username, password, name)
+make(family, template, output)
