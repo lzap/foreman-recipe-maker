@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 require "apipie-bindings"
-require "open3"
 
+# TODO getopt
 name = "client.nat.lan"
 output = "/tmp/recipe-#{name}.img"
 uri = 'http://localhost:3000/'
@@ -13,15 +13,7 @@ def make_redhat(template, output)
   Dir.mktmpdir do |tmpdir|
     File.write("#{tmpdir}/ks.cfg", template)
     `virt-make-fs --partition --label=OEMDRV -- #{tmpdir} #{output}`
-    #`virt-make-fs --partition --size=+300M --format=qcow2 --label=OEMDRV -- #{tmpdir} #{output}`
   end
-  return true
-  `mkfs.msdos -C "#{output}" 1440`
-  `echo OEMDRV | mlabel -i "#{output}"`
-  Open3.popen3("mcopy -i \"#{output}\" - ::ks.cfg") do |stdin, stdout, stderr|
-    stdin.puts template
-  end
-  `fsck.vfat -a "#{output}"`
 end
 
 def make_debian(template, output)
