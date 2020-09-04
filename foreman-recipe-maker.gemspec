@@ -12,11 +12,7 @@ Gem::Specification.new do |s|
   s.files = Dir["bin/**/*"] + ["LICENSE", "README.md"]
   s.homepage = 'https://github.com/lzap/foreman-recipe-maker'
   s.licenses = ["GPL-3.0"]
-  s.runtime_dependencies = [
-    "apipie-bindings"
-  ]
-  s.development_dependencies = [
-    "rufo"
-  ]
+  s.add_runtime_dependency "apipie-bindings"
+  s.add_development_dependency "rufo"
 end
 
